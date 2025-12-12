@@ -1,5 +1,11 @@
 # Release Notes
 
+## v2.2.12
+### Fixes
+- **Timezone Display Fix:** Fixed timezone conversion issue where last backup time from `sync_status` table (server local time) was being double-converted. Now correctly handles both UTC timestamps from metadata and local timestamps from sync_status, ensuring accurate time display regardless of timezone source.
+
+---
+
 ## v2.2.11
 ### Features
 - **Message Reactions Support:** Added full support for storing and displaying message reactions (emoji reactions) in the viewer. Reactions are automatically captured during backup and displayed below each message with emoji and count, styled similar to Telegram.
