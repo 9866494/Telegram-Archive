@@ -1,5 +1,11 @@
 # Release Notes
 
+## v2.2.9
+### Features
+- **Timezone-Aware Last Backup Time:** Last backup time is now displayed in the viewer sidebar and automatically converts to the browser's local timezone. Shows relative times (e.g., "Today at 14:30" or "Yesterday at 10:15") for better user experience.
+
+---
+
 ## v2.2.7
 ### Features
 - **Automated GitHub Releases:** New workflow automatically creates GitHub Releases for new tags.

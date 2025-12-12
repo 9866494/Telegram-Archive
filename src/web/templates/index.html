@@ -168,7 +168,7 @@
                 <!-- Header -->
                 <div class="p-4 border-b border-gray-700">
                     <h1 class="text-xl font-bold mb-4">Telegram Archive</h1>
-                    <div class="relative">
+                    <div class="relative mb-3">
                         <input v-model="searchQuery" type="text" placeholder="Search chats..."
                             class="w-full bg-gray-900 text-white rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor"
@@ -176,6 +176,16 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
+                    </div>
+                    <!-- Last Backup Time -->
+                    <div v-if="lastBackupTime" class="text-xs text-tg-muted">
+                        <div class="flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>Last backup: {{ formatLastBackupTime(lastBackupTime) }}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -499,6 +509,7 @@
                 const loginForm = ref({ username: '', password: '' })
                 const loginError = ref('')
                 const chatsError = ref('')  // Error message when database is busy
+                const lastBackupTime = ref(null)  // Last backup time from stats
 
                 // Intersection Observer for GIF autoplay
                 let gifObserver = null
@@ -534,6 +545,22 @@
                     }
                 }
 
+                const loadStats = async () => {
+                    try {
+                        const res = await fetch('/api/stats', {
+                            credentials: 'include'
+                        })
+                        if (res.ok) {
+                            const stats = await res.json()
+                            if (stats.last_backup_time) {
+                                lastBackupTime.value = stats.last_backup_time
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch stats", e)
+                    }
+                }
+
                 // Auth check on mount
                 onMounted(async () => {
                     try {
@@ -547,6 +574,7 @@
 
                             if (isAuthenticated.value) {
                                 await loadChats()
+                                await loadStats()
                             }
                         } else {
                             // If status endpoint fails, assume no auth required
@@ -561,6 +589,7 @@
                         authRequired.value = false
                         isAuthenticated.value = true
                         await loadChats()
+                        await loadStats()
                     } finally {
                         loadingAuth.value = false
                     }
@@ -622,6 +651,7 @@
                         if (data.success) {
                             isAuthenticated.value = true
                             await loadChats()
+                            await loadStats()
                         } else {
                             loginError.value = 'Login failed'
                         }
@@ -866,6 +896,24 @@
                     return moment(dateStr).format('HH:mm')
                 }
 
+                const formatLastBackupTime = (utcTimeStr) => {
+                    if (!utcTimeStr) return ''
+                    // Parse UTC time and convert to browser's local timezone
+                    const utcMoment = moment.utc(utcTimeStr)
+                    const localMoment = utcMoment.local()
+                    
+                    // Check if it's today
+                    if (localMoment.isSame(moment(), 'day')) {
+                        return `Today at ${localMoment.format('HH:mm')}`
+                    }
+                    // Check if it's yesterday
+                    if (localMoment.isSame(moment().subtract(1, 'day'), 'day')) {
+                        return `Yesterday at ${localMoment.format('HH:mm')}`
+                    }
+                    // Otherwise show date and time
+                    return localMoment.format('MMM D, YYYY [at] HH:mm')
+                }
+
                 const getMediaUrl = (msg) => {
                     if (!msg.media_path) return ''
                     // Extract filename from path
@@ -960,6 +1008,7 @@
                     formatDate,
                     formatDateFull,
                     formatTime,
+                    formatLastBackupTime,
                     getMediaUrl,
                     getDocumentDisplayName,
                     isImageDocument,
@@ -987,6 +1036,8 @@
                     // Error states
                     chatsError,
                     loadChats,
+                    // Stats
+                    lastBackupTime,
                 }
             }
         }).mount('#app')

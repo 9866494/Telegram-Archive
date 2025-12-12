@@ -194,6 +194,10 @@ class TelegramBackup:
             duration = (datetime.now() - start_time).total_seconds()
             stats = self.db.get_statistics()
             
+            # Store last backup time in UTC
+            last_backup_time = datetime.utcnow().isoformat() + 'Z'
+            self.db.set_metadata('last_backup_time', last_backup_time)
+            
             logger.info("=" * 60)
             logger.info("Backup completed successfully!")
             logger.info(f"Duration: {duration:.2f} seconds")

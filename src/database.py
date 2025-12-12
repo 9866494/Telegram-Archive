@@ -451,12 +451,20 @@ class Database:
         cursor.execute('SELECT SUM(file_size) as total FROM media WHERE downloaded = 1')
         total_size = cursor.fetchone()['total'] or 0
         
-        return {
+        # Get last backup time from metadata
+        last_backup_time = self.get_metadata('last_backup_time')
+        
+        stats = {
             'chats': chat_count,
             'messages': message_count,
             'media_files': media_count,
             'total_size_mb': round(total_size / (1024 * 1024), 2)
         }
+        
+        if last_backup_time:
+            stats['last_backup_time'] = last_backup_time
+        
+        return stats
     
     def get_messages_sync_data(self, chat_id: int) -> Dict[int, Optional[str]]:
         """
