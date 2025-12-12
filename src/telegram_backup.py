@@ -271,6 +271,38 @@ class TelegramBackup:
             # Batch insert every 50 messages
             if len(batch_data) >= batch_size:
                 self.db.insert_messages_batch(batch_data)
+                # Store reactions for this batch
+                for msg in batch_data:
+                    if msg.get('reactions'):
+                        reactions_list = []
+                        for reaction in msg['reactions']:
+                            # Store each user's reaction separately if we have user info
+                            # Otherwise store as aggregated count
+                            if reaction.get('user_ids') and len(reaction['user_ids']) > 0:
+                                # We have specific users - store each one
+                                for user_id in reaction['user_ids']:
+                                    reactions_list.append({
+                                        'emoji': reaction['emoji'],
+                                        'user_id': user_id,
+                                        'count': 1
+                                    })
+                                # If count is higher than user_ids, add remaining as anonymous
+                                remaining = reaction.get('count', 0) - len(reaction['user_ids'])
+                                if remaining > 0:
+                                    reactions_list.append({
+                                        'emoji': reaction['emoji'],
+                                        'user_id': None,
+                                        'count': remaining
+                                    })
+                            else:
+                                # No user info - store as aggregated count
+                                reactions_list.append({
+                                    'emoji': reaction['emoji'],
+                                    'user_id': None,
+                                    'count': reaction.get('count', 1)
+                                })
+                        if reactions_list:
+                            self.db.insert_reactions(msg['id'], chat_id, reactions_list)
                 total_processed += len(batch_data)
                 logger.info(f"  → Processed {total_processed} messages...")
                 batch_data = []
@@ -278,6 +310,33 @@ class TelegramBackup:
         # Insert remaining messages
         if batch_data:
             self.db.insert_messages_batch(batch_data)
+            # Store reactions for remaining messages
+            for msg in batch_data:
+                if msg.get('reactions'):
+                    reactions_list = []
+                    for reaction in msg['reactions']:
+                        if reaction.get('user_ids') and len(reaction['user_ids']) > 0:
+                            for user_id in reaction['user_ids']:
+                                reactions_list.append({
+                                    'emoji': reaction['emoji'],
+                                    'user_id': user_id,
+                                    'count': 1
+                                })
+                            remaining = reaction.get('count', 0) - len(reaction['user_ids'])
+                            if remaining > 0:
+                                reactions_list.append({
+                                    'emoji': reaction['emoji'],
+                                    'user_id': None,
+                                    'count': remaining
+                                })
+                        else:
+                            reactions_list.append({
+                                'emoji': reaction['emoji'],
+                                'user_id': None,
+                                'count': reaction.get('count', 1)
+                            })
+                    if reactions_list:
+                        self.db.insert_reactions(msg['id'], chat_id, reactions_list)
             total_processed += len(batch_data)
             
         # Update sync status
@@ -469,6 +528,47 @@ class TelegramBackup:
                     message_data['media_type'] = media_info['type']
                     message_data['media_id'] = media_info['id']
                     message_data['media_path'] = media_info.get('file_path')
+        
+        # Extract reactions if available
+        reactions_data = []
+        if hasattr(message, 'reactions') and message.reactions:
+            try:
+                # Check if reactions.results exists (MessageReactions object)
+                if hasattr(message.reactions, 'results') and message.reactions.results:
+                    for reaction in message.reactions.results:
+                        emoji = reaction.reaction
+                        # Handle both emoji strings and ReactionEmoji objects
+                        if hasattr(emoji, 'emoticon'):
+                            emoji_str = emoji.emoticon
+                        elif hasattr(emoji, 'document_id'):
+                            # Custom emoji (animated sticker) - use document_id as identifier
+                            emoji_str = f"custom_{emoji.document_id}"
+                        else:
+                            emoji_str = str(emoji)
+                        
+                        # Get user IDs who reacted (if available)
+                        user_ids = []
+                        if hasattr(reaction, 'recent_reactions') and reaction.recent_reactions:
+                            for recent in reaction.recent_reactions:
+                                if hasattr(recent, 'peer_id'):
+                                    peer = recent.peer_id
+                                    if hasattr(peer, 'user_id'):
+                                        user_ids.append(peer.user_id)
+                                    elif hasattr(peer, 'channel_id'):
+                                        user_ids.append(peer.channel_id)
+                        
+                        reactions_data.append({
+                            'emoji': emoji_str,
+                            'count': reaction.count,
+                            'user_ids': user_ids
+                        })
+            except Exception as e:
+                logger.warning(f"Error extracting reactions for message {message.id}: {e}")
+                import traceback
+                logger.debug(traceback.format_exc())
+        
+        # Store reactions separately (will be called after message is inserted)
+        message_data['reactions'] = reactions_data
         
         # Return message data for batch processing
         return message_data

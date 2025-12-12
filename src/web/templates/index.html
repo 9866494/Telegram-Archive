@@ -468,6 +468,17 @@
                                     <div class="whitespace-pre-wrap break-words message-text"
                                         v-html="linkifyText(msg.text)"></div>
 
+                                    <!-- Reactions -->
+                                    <div v-if="msg.reactions && msg.reactions.length > 0" class="mt-2 flex flex-wrap gap-1.5">
+                                        <div v-for="reaction in msg.reactions" :key="reaction.emoji"
+                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-full transition"
+                                            :class="isOwnMessage(msg) ? 'bg-blue-500/20 hover:bg-blue-500/30' : 'bg-black/20 hover:bg-black/30'"
+                                            :title="reaction.count > 1 ? `${reaction.count} reactions` : '1 reaction'">
+                                            <span class="text-sm">{{ formatReactionEmoji(reaction.emoji) }}</span>
+                                            <span v-if="reaction.count > 1" class="text-[11px] font-medium opacity-80">{{ reaction.count }}</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Metadata -->
                                     <div
                                         class="text-[10px] opacity-60 text-right mt-1 flex justify-end items-center gap-1">
@@ -914,6 +925,16 @@
                     return moment(dateStr).format('HH:mm')
                 }
 
+                const formatReactionEmoji = (emoji) => {
+                    // Handle custom emojis (stored as custom_documentId)
+                    if (emoji && emoji.startsWith('custom_')) {
+                        // For custom emojis, show a placeholder or try to extract emoji
+                        // In the future, we could load the actual sticker/emoji
+                        return '🎭'
+                    }
+                    return emoji || '👍'
+                }
+
                 const formatLastBackupTime = (timeStr, tz) => {
                     if (!timeStr) {
                         return 'Never'
@@ -1055,6 +1076,7 @@
                     formatDateFull,
                     formatTime,
                     formatLastBackupTime,
+                    formatReactionEmoji,
                     getMediaUrl,
                     getDocumentDisplayName,
                     isImageDocument,

@@ -1,5 +1,17 @@
 # Release Notes
 
+## v2.2.11
+### Features
+- **Message Reactions Support:** Added full support for storing and displaying message reactions (emoji reactions) in the viewer. Reactions are automatically captured during backup and displayed below each message with emoji and count, styled similar to Telegram.
+
+### Technical Details
+- New `reactions` table added to database schema (automatically created for both new and existing users)
+- Reactions are extracted from Telegram messages including user information when available
+- Supports both regular emoji reactions and custom emoji reactions (animated stickers)
+- Reactions are displayed in the web viewer with proper styling and counts
+
+---
+
 ## v2.2.10
 ### Features
 - **Configurable Timezone for Last Backup Time:** Added `VIEWER_TIMEZONE` environment variable to configure the timezone for displaying last backup time. Defaults to `Europe/Madrid` if not specified. Can be set in docker-compose.yml.

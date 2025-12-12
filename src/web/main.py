@@ -261,6 +261,24 @@ def get_messages(
             if reply_row and reply_row['text']:
                 # Truncate to 100 chars like Telegram does
                 msg['reply_to_text'] = reply_row['text'][:100]
+        
+        # Get reactions for this message
+        reactions = db.get_reactions(msg['id'], chat_id)
+        # Group reactions by emoji and aggregate counts
+        reactions_by_emoji = {}
+        for reaction in reactions:
+            emoji = reaction['emoji']
+            if emoji not in reactions_by_emoji:
+                reactions_by_emoji[emoji] = {
+                    'emoji': emoji,
+                    'count': 0,
+                    'user_ids': []
+                }
+            reactions_by_emoji[emoji]['count'] += reaction.get('count', 1)
+            if reaction.get('user_id'):
+                reactions_by_emoji[emoji]['user_ids'].append(reaction['user_id'])
+        
+        msg['reactions'] = list(reactions_by_emoji.values())
 
     return messages
 

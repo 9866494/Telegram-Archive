@@ -120,6 +120,21 @@ class Database:
             )
         ''')
 
+        # Reactions table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS reactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                emoji TEXT NOT NULL,
+                user_id INTEGER,
+                count INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(message_id, chat_id, emoji, user_id),
+                FOREIGN KEY (message_id, chat_id) REFERENCES messages(id, chat_id)
+            )
+        ''')
+        
         # Sync status table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS sync_status (
@@ -144,6 +159,7 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_date ON messages(date)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_message ON media(message_id, chat_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id, chat_id)')
         
         self.conn.commit()
         logger.debug("Database schema created/verified")
@@ -345,6 +361,56 @@ class Database:
             media_data.get('download_date')
         ))
         self.conn.commit()
+    
+    def insert_reactions(self, message_id: int, chat_id: int, reactions: List[Dict[str, Any]]):
+        """
+        Insert reactions for a message.
+        
+        Args:
+            message_id: Message ID
+            chat_id: Chat ID
+            reactions: List of reaction dictionaries with 'emoji' and optionally 'user_id' and 'count'
+        """
+        if not reactions:
+            return
+        
+        cursor = self.conn.cursor()
+        # Delete existing reactions for this message first
+        cursor.execute('DELETE FROM reactions WHERE message_id = ? AND chat_id = ?', (message_id, chat_id))
+        
+        # Insert new reactions
+        for reaction in reactions:
+            cursor.execute('''
+                INSERT INTO reactions (message_id, chat_id, emoji, user_id, count)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                message_id,
+                chat_id,
+                reaction['emoji'],
+                reaction.get('user_id'),
+                reaction.get('count', 1)
+            ))
+        self.conn.commit()
+    
+    def get_reactions(self, message_id: int, chat_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all reactions for a message.
+        
+        Args:
+            message_id: Message ID
+            chat_id: Chat ID
+            
+        Returns:
+            List of reaction dictionaries
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT emoji, user_id, count
+            FROM reactions
+            WHERE message_id = ? AND chat_id = ?
+            ORDER BY emoji
+        ''', (message_id, chat_id))
+        return [dict(row) for row in cursor.fetchall()]
     
     def get_last_message_id(self, chat_id: int) -> int:
         """
