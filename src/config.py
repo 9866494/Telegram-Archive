@@ -37,10 +37,24 @@ class Config:
         self.batch_size = int(os.getenv('BATCH_SIZE', '100'))
 
         # Database Configuration
-        # Timeout for SQLite operations (seconds). 
+        # Type of database to use: sqlite, sqlite-alchemy, or postgres-alchemy
+        # - sqlite: Original SQLite implementation (default)
+        # - sqlite-alchemy: SQLite through SQLAlchemy adapters
+        # - postgres-alchemy: PostgreSQL through SQLAlchemy adapters
+        self.db_type = os.getenv('DB_TYPE', 'sqlite').lower()
+
+        # Timeout for SQLite operations (seconds).
         # Increase this if you experience "database is locked" errors (e.g., on Unraid/slow disks).
         # Default increased to 60s for better resilience with concurrent access (backup + web viewer).
         self.database_timeout = float(os.getenv('DATABASE_TIMEOUT', '60.0'))
+
+        # PostgreSQL configuration (used when db_type = postgres-alchemy)
+        self.postgres_host = os.getenv('POSTGRES_HOST', 'localhost')
+        self.postgres_port = int(os.getenv('POSTGRES_PORT', '5432'))
+        self.postgres_db = os.getenv('POSTGRES_DB', 'telegram_backup')
+        self.postgres_user = os.getenv('POSTGRES_USER', 'postgres')
+        self.postgres_password = os.getenv('POSTGRES_PASSWORD', '')
+        self.postgres_pool_size = int(os.getenv('POSTGRES_POOL_SIZE', '5'))
         
         # Chat type filters
         chat_types_str = os.getenv('CHAT_TYPES', 'private,groups,channels')
