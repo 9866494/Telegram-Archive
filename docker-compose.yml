@@ -19,7 +19,7 @@ services:
       retries: 5
 
   telegram-backup:
-    image: drumsergio/telegram-backup-automation:latest
+    build: .
     container_name: telegram-backup
     restart: unless-stopped
     depends_on:
@@ -70,6 +70,8 @@ services:
     volumes:
       # Persistent data storage
       - ./data:/data
+      # Mount source code for development
+      - ./src:/app/src
     networks:
       - telegram-network
     # Optional: Resource limits
@@ -110,6 +112,8 @@ services:
       VIEWER_TIMEZONE: ${VIEWER_TIMEZONE:-Europe/Madrid}
     volumes:
       - ./data:/data
+      # Mount source code for development
+      - ./src:/app/src
     networks:
       - telegram-network
   # Example: Restricted Channel Viewer (optional)

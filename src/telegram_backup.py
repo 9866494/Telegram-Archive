@@ -22,6 +22,8 @@ from telethon.tl.types import (
 
 from .config import Config
 from .database import Database
+from .db_adapters.factory import create_database_adapter
+from .db_adapters.factory import is_sqlalchemy_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +34,23 @@ class TelegramBackup:
     def __init__(self, config: Config):
         """
         Initialize Telegram backup manager.
-        
+
         Args:
             config: Configuration object
         """
         self.config = config
         self.config.validate_credentials()
-        self.db = Database(config.database_path, timeout=config.database_timeout)
+
+        # Choose database implementation based on db_type
+        if is_sqlalchemy_adapter(config.db_type):
+            logger.info(f"Using SQLAlchemy adapter for {config.db_type}")
+            self.db = create_database_adapter(config)
+        else:
+            logger.info(f"Using original SQLite implementation")
+            self.db = Database(config.database_path, timeout=config.database_timeout)
+
         self.client: Optional[TelegramClient] = None
-        
+
         logger.info("TelegramBackup initialized")
     
     async def connect(self):
@@ -82,10 +92,15 @@ class TelegramBackup:
         logger.info(f"Connected as {me.first_name} ({me.phone})")
     
     async def disconnect(self):
-        """Disconnect from Telegram."""
+        """Disconnect from Telegram and close database connection."""
         if self.client:
             await self.client.disconnect()
             logger.info("Disconnected from Telegram")
+
+        # Close database connection if it's a SQLAlchemy adapter
+        if hasattr(self.db, 'close'):
+            self.db.close()
+            logger.info("Database connection closed")
     
     async def backup_all(self):
         """
@@ -103,9 +118,15 @@ class TelegramBackup:
             me = await self.client.get_me()
             logger.info(f"Logged in as {me.first_name} ({me.id})")
             
+            # Initialize database schema if using SQLAlchemy adapters
+            if hasattr(self.db, 'initialize_schema'):
+                self.db.initialize_schema()
+                logger.info("Database schema initialized")
+
             # Store owner ID and backfill is_outgoing for existing messages
             self.db.set_metadata('owner_id', str(me.id))
-            self.db.backfill_is_outgoing(me.id)
+            if hasattr(self.db, 'backfill_is_outgoing'):
+                self.db.backfill_is_outgoing(me.id)
 
             start_time = datetime.now()
             
@@ -172,7 +193,7 @@ class TelegramBackup:
             # Detect whether we've already completed at least one full backup run
             # (i.e. some chats have a non-zero last_message_id recorded)
             has_synced_before = any(
-                self.db.get_last_message_id(dialog.entity.id) > 0
+                self.db.get_last_synced_message_id(dialog.entity.id) > 0
                 for dialog in filtered_dialogs
             )
 
@@ -252,7 +273,7 @@ class TelegramBackup:
             logger.error(f"Error downloading profile photo for {chat_id}: {e}", exc_info=True)
         
         # Get last synced message ID for incremental backup
-        last_message_id = self.db.get_last_message_id(chat_id)
+        last_message_id = self.db.get_last_synced_message_id(chat_id)
         
         # Fetch new messages
         messages = []

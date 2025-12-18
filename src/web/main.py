@@ -14,6 +14,8 @@ import json
 
 from ..config import Config
 from ..database import Database
+from ..db_adapters.factory import create_database_adapter
+from ..db_adapters.factory import is_sqlalchemy_adapter
 
 # Configure logging
 logging.basicConfig(
@@ -35,7 +37,18 @@ app.add_middleware(
 
 # Initialize config and database
 config = Config()
-db = Database(config.database_path, timeout=config.database_timeout)
+
+# Choose database implementation based on db_type
+if is_sqlalchemy_adapter(config.db_type):
+    logger.info(f"Using SQLAlchemy adapter for {config.db_type}")
+    db = create_database_adapter(config)
+    db.initialize_schema()
+    logger.info("Database schema initialized")
+else:
+    logger.info("Using original SQLite implementation")
+    db = Database(config.database_path, timeout=config.database_timeout)
+
+logger.info(f"Database initialized at {config.database_path}")
 
 # Simple viewer authentication using env vars
 VIEWER_USERNAME = os.getenv("VIEWER_USERNAME", "").strip()
