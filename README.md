@@ -43,6 +43,8 @@ Automated Telegram backup with Docker. Performs incremental backups of messages 
 
 ### 2. Deploy with Docker
 
+#### Option A: Using Pre-built Docker Hub Images (Recommended)
+
 ```bash
 # Clone and configure
 git clone https://github.com/GeiserX/telegram-backup-automation
@@ -53,7 +55,23 @@ cp .env.example .env
 # Authenticate (one-time)
 ./init_auth.sh  # or init_auth.bat on Windows
 
-# Start services
+# Start services using Docker Hub images
+docker-compose -f docker-compose.hub.yml up -d
+```
+
+#### Option B: Build from Source
+
+```bash
+# Clone and configure
+git clone https://github.com/GeiserX/telegram-backup-automation
+cd telegram-backup-automation
+cp .env.example .env
+# Edit .env with your credentials
+
+# Authenticate (one-time)
+./init_auth.sh  # or init_auth.bat on Windows
+
+# Start services (builds images locally)
 docker-compose up -d
 ```
 
@@ -145,6 +163,46 @@ docker-compose exec telegram-backup python -m src.telegram_backup
 docker-compose exec telegram-backup python -m src.db_adapters.postgres_adapter
 docker-compose exec telegram-backup python -m src.db_adapters.sqlite_adapter
 ```
+
+## Docker Hub Images
+
+Pre-built Docker images are available on Docker Hub:
+
+- **Backup Service**: `awful/telegram-archive-backup`
+- **Viewer Service**: `awful/telegram-archive-viewer`
+
+### Using Docker Hub Images
+
+Use the provided `docker-compose.hub.yml` file:
+
+```bash
+docker-compose -f docker-compose.hub.yml up -d
+```
+
+### Publishing Images
+
+To publish new versions to Docker Hub:
+
+```bash
+# Login to Docker Hub first
+docker login
+
+# Publish latest versions
+./publish-docker.sh
+
+# Publish with specific version tag
+./publish-docker.sh v1.0.0
+```
+
+This will:
+1. Build separate images for backup and viewer services
+2. Tag them as `awful/telegram-archive-backup:VERSION` and `awful/telegram-archive-viewer:VERSION`
+3. Push both images to Docker Hub
+
+### Image Variants
+
+- **latest**: Most recent stable release
+- **vX.Y.Z**: Versioned releases for reproducible deployments
 
 ## Database Migration
 
