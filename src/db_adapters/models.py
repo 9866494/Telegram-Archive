@@ -19,10 +19,20 @@ from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
+# Import schema configuration
+from .schema import get_schema_name
+
 
 class Chat(Base):
     """Chat information"""
     __tablename__ = "chats"
+
+    # Set schema for PostgreSQL only (will be None for SQLite)
+    schema = get_schema_name()
+    __table_args__ = (
+        Index('idx_chat_type', 'type'),
+        Index('idx_chat_username', 'username'),
+    )
 
     # Use BigInteger for PostgreSQL compatibility (Telegram IDs can be very large)
     id = Column(BigInteger, primary_key=True)
@@ -43,18 +53,13 @@ class Chat(Base):
     media_files = relationship("Media", back_populates="chat", cascade="all, delete-orphan")
     sync_status = relationship("SyncStatus", back_populates="chat", uselist=False)
 
-    __table_args__ = (
-        Index('idx_chat_type', 'type'),
-        Index('idx_chat_username', 'username'),
-    )
-
 
 class Message(Base):
     """Message data"""
     __tablename__ = "messages"
 
-  # Use single primary key for PostgreSQL compatibility
-# In SQLite, we'll create a unique index on (id, chat_id)
+    # Use single primary key for PostgreSQL compatibility
+    # In SQLite, we'll create a unique index on (id, chat_id)
     id = Column(BigInteger, primary_key=True)
     chat_id = Column(BigInteger, ForeignKey("chats.id"), nullable=False)
     sender_id = Column(BigInteger)  # User who sent the message
@@ -77,6 +82,8 @@ class Message(Base):
     # media_files = relationship("Media", back_populates="message", cascade="all, delete-orphan")
     reactions = relationship("Reaction", back_populates="message", cascade="all, delete-orphan")
 
+    # Set schema for PostgreSQL only (will be None for SQLite)
+    schema = get_schema_name()
     __table_args__ = (
         Index('idx_message_chat_date', 'chat_id', 'date'),
         Index('idx_message_sender', 'sender_id'),
@@ -84,12 +91,21 @@ class Message(Base):
         # Unique index on (id, chat_id) for SQLite compatibility
         # PostgreSQL will have id as primary key, SQLite uses (id, chat_id) as unique
         Index('uq_message_id_chat', 'id', 'chat_id', unique=True),
+        {'schema': schema} if schema else {}
     )
 
 
 class User(Base):
     """User information"""
     __tablename__ = "users"
+
+    # Set schema for PostgreSQL only (will be None for SQLite)
+    schema = get_schema_name()
+    __table_args__ = (
+        Index('idx_user_username', 'username'),
+        Index('idx_user_phone', 'phone'),
+        {'schema': schema} if schema else {}
+    )
 
     id = Column(BigInteger, primary_key=True)
     username = Column(String(255))
@@ -99,11 +115,6 @@ class User(Base):
     is_bot = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=sql_text("CURRENT_TIMESTAMP"))
     updated_at = Column(DateTime, server_default=sql_text("CURRENT_TIMESTAMP"))
-
-    __table_args__ = (
-        Index('idx_user_username', 'username'),
-        Index('idx_user_phone', 'phone'),
-    )
 
 
 class Media(Base):
@@ -130,9 +141,12 @@ class Media(Base):
     # message = relationship("Message", back_populates="media_files")
     chat = relationship("Chat", back_populates="media_files")
 
+    # Set schema for PostgreSQL only (will be None for SQLite)
+    schema = get_schema_name()
     __table_args__ = (
         Index('idx_media_type', 'type'),
         Index('idx_media_downloaded', 'downloaded'),
+        {'schema': schema} if schema else {}
     )
 
 
@@ -151,15 +165,25 @@ class Reaction(Base):
     # Relationships
     message = relationship("Message", back_populates="reactions")
 
+    # Set schema for PostgreSQL only (will be None for SQLite)
+    schema = get_schema_name()
     __table_args__ = (
         Index('idx_reaction_message', 'message_id'),
         Index('idx_reaction_emoji', 'emoji'),
+        {'schema': schema} if schema else {}
     )
 
 
 class SyncStatus(Base):
     """Synchronization status for each chat"""
     __tablename__ = "sync_status"
+
+    # Set schema for PostgreSQL only (will be None for SQLite)
+    schema = get_schema_name()
+    __table_args__ = (
+        Index('idx_sync_date', 'last_sync_date'),
+        {'schema': schema} if schema else {}
+    )
 
     chat_id = Column(BigInteger, ForeignKey("chats.id"), primary_key=True)
     last_message_id = Column(BigInteger, default=0)
@@ -169,18 +193,17 @@ class SyncStatus(Base):
     # Relationships
     chat = relationship("Chat", back_populates="sync_status")
 
-    __table_args__ = (
-        Index('idx_sync_date', 'last_sync_date'),
-    )
-
 
 class Metadata(Base):
     """Application metadata"""
     __tablename__ = "metadata"
 
-    key = Column(String(100), primary_key=True)
-    value = Column(Text)
-
+    # Set schema for PostgreSQL only (will be None for SQLite)
+    schema = get_schema_name()
     __table_args__ = (
         Index('idx_metadata_key', 'key'),
+        {'schema': schema} if schema else {}
     )
+
+    key = Column(String(100), primary_key=True)
+    value = Column(Text)

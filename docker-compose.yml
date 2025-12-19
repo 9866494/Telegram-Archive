@@ -37,12 +37,13 @@ services:
       SCHEDULE: ${SCHEDULE:-0 */6 * * *}
 
       # Database Configuration
-      DB_TYPE: ${DB_TYPE:-postgresql}
+      DB_TYPE: ${DB_TYPE:-postgres-alchemy}
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-telegram_backup}
       POSTGRES_USER: ${POSTGRES_USER:-telegram}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-telegram_archive}
 
       # Backup Configuration
       BACKUP_PATH: /data/backups
@@ -96,12 +97,13 @@ services:
       - "8000:8000"
     environment:
       # Database Configuration
-      DB_TYPE: ${DB_TYPE:-postgresql}
+      DB_TYPE: ${DB_TYPE:-postgres-alchemy}
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-telegram_backup}
       POSTGRES_USER: ${POSTGRES_USER:-telegram}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-telegram_archive}
 
       BACKUP_PATH: /data/backups
       # Optional basic auth for the viewer (recommended)

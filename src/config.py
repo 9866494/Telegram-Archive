@@ -55,6 +55,7 @@ class Config:
         self.postgres_user = os.getenv('POSTGRES_USER', 'postgres')
         self.postgres_password = os.getenv('POSTGRES_PASSWORD', '')
         self.postgres_pool_size = int(os.getenv('POSTGRES_POOL_SIZE', '5'))
+        self.postgres_schema = os.getenv('POSTGRES_SCHEMA', 'telegram_archive')
         
         # Chat type filters
         chat_types_str = os.getenv('CHAT_TYPES', 'private,groups,channels')

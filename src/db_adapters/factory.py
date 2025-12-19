@@ -50,6 +50,7 @@ def create_database_adapter(config) -> DatabaseAdapter:
         user = getattr(config, "postgres_user", "postgres")
         password = getattr(config, "postgres_password", "")
         pool_size = getattr(config, "postgres_pool_size", 5)
+        schema = getattr(config, "postgres_schema", "telegram_archive")
 
         if not password:
             raise ValueError("PostgreSQL password is required when using postgres-alchemy")
@@ -60,7 +61,8 @@ def create_database_adapter(config) -> DatabaseAdapter:
             database=database,
             user=user,
             password=password,
-            pool_size=pool_size
+            pool_size=pool_size,
+            schema=schema
         )
     else:
         raise ValueError(f"Unsupported database type: {db_type}. Use 'sqlite' or 'sqlite-alchemy' for SQLite, or 'postgres-alchemy' for PostgreSQL.")

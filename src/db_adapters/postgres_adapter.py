@@ -20,6 +20,7 @@ from .adapter import DatabaseAdapter
 from .models import (
     Base, Chat, Message, User, Media, Reaction, SyncStatus, Metadata
 )
+from .schema import set_schema_name
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ class PostgreSQLAdapter(DatabaseAdapter):
     """PostgreSQL database adapter using SQLAlchemy"""
 
     def __init__(self, host: str, port: int, database: str,
-                 user: str, password: str, pool_size: int = 5):
+                 user: str, password: str, pool_size: int = 5,
+                 schema: str = "telegram_archive"):
         """
         Initialize PostgreSQL adapter.
 
@@ -39,6 +41,7 @@ class PostgreSQLAdapter(DatabaseAdapter):
             user: Database user
             password: Database password
             pool_size: Connection pool size
+            schema: Database schema name
         """
         # Create PostgreSQL connection string
         db_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
@@ -61,11 +64,34 @@ class PostgreSQLAdapter(DatabaseAdapter):
         # Session factory
         self.SessionLocal = sessionmaker(bind=self.engine, autoflush=False, autocommit=False)
 
+        # Store schema name
+        self.schema = schema
+
         logger.info(f"PostgreSQL adapter initialized with {host}:{port}/{database}")
 
     def initialize_schema(self) -> None:
         """Create database tables if they don't exist"""
-        logger.info("Initializing PostgreSQL database schema")
+        logger.info(f"Initializing PostgreSQL database schema in '{self.schema}' schema")
+
+        # Set schema for models before creating tables
+        set_schema_name(self.schema)
+
+        # Create schema if it doesn't exist
+        with self.engine.connect() as conn:
+            try:
+                conn.execute(sql_text(f"CREATE SCHEMA IF NOT EXISTS {self.schema}"))
+                conn.commit()
+                logger.info(f"Schema '{self.schema}' created or already exists")
+            except Exception as e:
+                logger.error(f"Error creating schema: {e}")
+                conn.rollback()
+                raise
+
+        # Set schema for all tables
+        for table in Base.metadata.tables.values():
+            table.schema = self.schema
+
+        # Create tables in the specified schema
         Base.metadata.create_all(bind=self.engine)
 
         # Create additional indexes for better performance
@@ -74,17 +100,18 @@ class PostgreSQLAdapter(DatabaseAdapter):
     def _create_additional_indexes(self) -> None:
         """Create additional indexes for better query performance"""
         with self.engine.connect() as conn:
-            # Create indexes if they don't exist
+            # Create indexes if they don't exist (with schema qualification)
+            schema_prefix = f"{self.schema}." if self.schema else ""
             indexes = [
-                "CREATE INDEX IF NOT EXISTS idx_message_date_desc ON messages (date DESC)",
-                "CREATE INDEX IF NOT EXISTS idx_message_chat_sender ON messages (chat_id, sender_id)",
-                "CREATE INDEX IF NOT EXISTS idx_media_file_size ON media (file_size)",
-                "CREATE INDEX IF NOT EXISTS idx_sync_chat_sync ON sync_status (chat_id, last_sync_date DESC)",
+                f"CREATE INDEX IF NOT EXISTS idx_message_date_desc ON {schema_prefix}messages (date DESC)",
+                f"CREATE INDEX IF NOT EXISTS idx_message_chat_sender ON {schema_prefix}messages (chat_id, sender_id)",
+                f"CREATE INDEX IF NOT EXISTS idx_media_file_size ON {schema_prefix}media (file_size)",
+                f"CREATE INDEX IF NOT EXISTS idx_sync_chat_sync ON {schema_prefix}sync_status (chat_id, last_sync_date DESC)",
             ]
 
             for index_sql in indexes:
                 try:
-                    conn.execute(text(index_sql))
+                    conn.execute(sql_text(index_sql))
                     conn.commit()
                 except Exception as e:
                     logger.warning(f"Failed to create index: {e}")
