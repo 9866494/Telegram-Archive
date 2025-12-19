@@ -36,6 +36,7 @@ The project uses SQLAlchemy with an adapter pattern to support multiple database
 - PostgreSQL 16 with connection pooling
 - Enhanced JSON support with native PostgreSQL JSON types
 - Automatic schema creation and migrations
+- Dedicated schema support (default: telegram_archive)
 - Optimized for production workloads
 
 **src/db_adapters/factory.py** - Adapter factory
@@ -306,6 +307,7 @@ When making changes, run the full test suite to ensure nothing breaks.
 - `POSTGRES_USER` - Database user (default: telegram)
 - `POSTGRES_PASSWORD` - Database password (required)
 - `POSTGRES_POOL_SIZE` - Connection pool size (default: 5)
+- `POSTGRES_SCHEMA` - Database schema name (default: telegram_archive)
 
 ### Optional (Common)
 - `SCHEDULE` - Cron format (default: `0 */6 * * *`)
